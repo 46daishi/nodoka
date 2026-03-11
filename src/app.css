@@ -1,0 +1,17 @@
+html,
+body {
+    margin: 0;
+    background-color: var(--theme-background, #2f2f2f);
+    color: var(--theme-text, #f6f6f6);
+}
+
+#svelte {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+@font-face {
+    font-family: "Symbols Nerd Font";
+    src: url("/fonts/SymbolsNerdFont-Regular.ttf") format("truetype");
+}
