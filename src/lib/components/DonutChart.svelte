@@ -3,6 +3,8 @@
   Renders a ring chart with hover-highlighted segments and a center label.
 -->
 <script>
+    import { formatMinutes } from "$lib/utils/chartFormatters.js";
+
     /**
      * @type {Array<{label: string, value: number, color: string}>}
      */
@@ -63,13 +65,6 @@
             `A ${ri} ${ri} 0 ${large} 0 ${i2.x} ${i2.y}`,
             "Z",
         ].join(" ");
-    }
-
-    function fmtMins(m) {
-        if (!m) return "0m";
-        const h = Math.floor(m / 60);
-        const min = m % 60;
-        return h > 0 ? (min > 0 ? `${h}h ${min}m` : `${h}h`) : `${min}m`;
     }
 
     $: pct =
@@ -162,7 +157,7 @@
             >
                 <span class="leg-dot" style="background:{seg.color}" />
                 <span class="leg-label">{seg.label}</span>
-                <span class="leg-val">{fmtMins(seg.value)}</span>
+                <span class="leg-val">{formatMinutes(seg.value)}</span>
             </div>
         {/each}
     </div>

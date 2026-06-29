@@ -17,10 +17,9 @@
     import ThemeSelector from "$lib/components/ThemeSelector.svelte";
     import ActionButton from "$lib/components/ActionButton.svelte";
     import NoiseModal from "$lib/components/NoiseModal.svelte";
+    import { modals, openModal, closeModal } from "$lib/stores/modals.js";
 
-    let showNoise = false;
-
-    // ── Profile state ─────────────────────────────────────────────────────────
+    // ── Profile state ────────────────────────────────────────────────────────[...]
 
     let profiles = [];
 
@@ -92,14 +91,13 @@
 
     // ── Extension modal ───────────────────────────────────────────────────────
 
-    let showExtension = false;
     let extensionMinutes = 5;
 
     // Captured when the user clicks +, because nextSession() has already advanced
     // sessionType to the upcoming session by then.
     let extensionContext = "Focus";
 
-    function openExtension() {
+    function openExtensionModal() {
         const upcoming = $pomodoro.sessionType;
         // nextSession() has already advanced sessionType to the upcoming session.
         // If the upcoming session is a break, the thing that just finished was focus.
@@ -108,17 +106,17 @@
             upcoming === "Short break" || upcoming === "Long break";
         extensionContext = upcomingIsBreak ? "Focus" : "Break";
         extensionMinutes = 5;
-        showExtension = true;
+        openModal("extension");
     }
 
     function confirmExtension() {
         const mins = Math.max(1, Math.round(extensionMinutes));
-        showExtension = false;
+        closeModal("extension");
         pomodoro.startExtension(mins * 60);
     }
 
     function cancelExtension() {
-        showExtension = false;
+        closeModal("extension");
     }
 
     function focusExtensionInput(node) {
@@ -126,7 +124,7 @@
         node.select();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────────── [...]
 
     function togglePlayPause() {
         $pomodoro.isRunning ? pomodoro.stop() : pomodoro.start();
@@ -187,7 +185,7 @@
         <p class="session-label">
             {sessionLabel}
             {#if $justCompleted && !$pomodoro.isRunning && !$settings.countUp}
-                <button class="edit-btn extend-btn" on:click={openExtension}>
+                <button class="edit-btn extend-btn" on:click={openExtensionModal}>
                     <span class="icon nf" aria-hidden="true">{ICONS.plus}</span>
                 </button>
             {/if}
@@ -254,19 +252,19 @@
         <ThemeSelector />
         <ActionButton
             icon={ICONS.unmute}
-            onAction={() => (showNoise = true)}
+            onAction={() => openModal("noise")}
             variant="secondary"
             size="small"
         />
     </div>
 </nav>
 
-{#if showNoise}
-    <NoiseModal onClose={() => (showNoise = false)} />
+{#if $modals.noise}
+    <NoiseModal onClose={() => closeModal("noise")} />
 {/if}
 
 <!-- Extension modal -->
-{#if showExtension}
+{#if $modals.extension}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
         class="modal-backdrop"

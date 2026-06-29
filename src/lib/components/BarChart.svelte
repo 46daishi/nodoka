@@ -1,4 +1,7 @@
 <script>
+    import { formatDate, formatValue, calculateNiceMax, calculateLabelStep } from "$lib/utils/chartFormatters.js";
+    import TooltipContent from "$lib/components/TooltipContent.svelte";
+
     export let data = [];
     export let series = [];
     export let unit = "";
@@ -18,33 +21,7 @@
 
     let tooltip = null;
 
-    // ── Formatting ────────────────────────────────────────────────────────────
-
-    function fmtDate(s) {
-        return new Date(s).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-        });
-    }
-    function fmtMins(m) {
-        if (!m) return "0m";
-        const h = Math.floor(m / 60),
-            min = m % 60;
-        return h > 0 ? (min > 0 ? `${h}h ${min}m` : `${h}h`) : `${min}m`;
-    }
-    function fmtTick(tick) {
-        if (unit !== "m") return String(tick);
-        if (tick === 0) return "0";
-        if (tick % 60 === 0) return `${tick / 60}h`;
-        return tick >= 60
-            ? `${Math.floor(tick / 60)}h${tick % 60}m`
-            : `${tick}m`;
-    }
-    function fmt(val) {
-        return unit === "m" ? fmtMins(val) : String(val);
-    }
-
-    // ── Scale ─────────────────────────────────────────────────────────────────
+    // ── Scale ──────────────────────────────────────────────────────────── [...]
 
     $: maxRaw =
         mode === "stacked"
@@ -59,20 +36,7 @@
                   1,
               );
 
-    $: yMax = niceMax(maxRaw);
-
-    function niceMax(v) {
-        if (v <= 0) return 10;
-        const candidates = [
-            1, 2, 5, 10, 15, 20, 25, 30, 60, 90, 120, 150, 180, 240, 300, 360,
-            480,
-        ];
-        const rawStep = v / 4;
-        const step =
-            candidates.find((c) => c >= rawStep) ??
-            Math.ceil(rawStep / 60) * 60;
-        return step * 4;
-    }
+    $: yMax = calculateNiceMax(maxRaw);
 
     $: yTicks = Array.from({ length: 5 }, (_, i) => (yMax / 4) * i);
 
@@ -131,20 +95,13 @@
             .filter((b) => b.h > 0);
     });
 
-    $: labelStep =
-        data.length <= 7
-            ? 1
-            : data.length <= 14
-              ? 2
-              : data.length <= 21
-                ? 3
-                : Math.ceil(data.length / 7);
+    $: labelStep = calculateLabelStep(data.length);
 
     $: xLabels = data
         .map((d, gi) => ({ d, gi, x: gi * barGroupW + barPad + groupW / 2 }))
         .filter((_, gi) => gi % labelStep === 0);
 
-    // ── Tooltip ───────────────────────────────────────────────────────────────
+    // ── Tooltip ─────────────────────────────────────────────────────────── [...]
 
     function updateTooltip(e, d, gi) {
         if (!wrapEl) return;
@@ -196,7 +153,7 @@
                         fill="var(--theme-textSecondary,#b3b3b3)"
                         font-size="10"
                     >
-                        {fmtTick(tick)}
+                        {formatValue(tick, unit)}
                     </text>
                 {/each}
 
@@ -230,7 +187,7 @@
                         fill="var(--theme-textSecondary,#b3b3b3)"
                         font-size="10"
                     >
-                        {fmtDate(lbl.d.date)}
+                        {formatDate(lbl.d.date)}
                     </text>
                 {/each}
 
@@ -248,24 +205,7 @@
 
         {#if tooltip}
             <div class="tooltip" style="left:{ttX}px;top:{ttY}px;">
-                <div class="tt-date">{fmtDate(tooltip.d.date)}</div>
-                {#each series as ser}
-                    {@const val = tooltip.d[ser.key] ?? 0}
-                    {#if !filterZeroTooltip || val !== 0}
-                    <div class="tt-row">
-                        <span class="tt-dot" style="background:{ser.color}" />
-                        <span class="tt-label">{ser.label}</span>
-                        <span class="tt-val">{fmt(val)}</span>
-                    </div>
-                    {/if}
-                {/each}
-                {#if series.length > 1}
-                    {@const total = series.reduce(
-                        (s, ser) => s + (tooltip.d[ser.key] ?? 0),
-                        0,
-                    )}
-                    <div class="tt-total">Total {fmt(total)}</div>
-                {/if}
+                <TooltipContent dataPoint={tooltip.d} {series} {unit} filterZeroRows={filterZeroTooltip} />
             </div>
         {/if}
     {/if}
@@ -301,41 +241,5 @@
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
         white-space: nowrap;
         z-index: 999;
-    }
-    .tt-date {
-        font-weight: 600;
-        margin-bottom: 6px;
-        color: var(--theme-textSecondary, #b3b3b3);
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-    }
-    .tt-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin: 3px 0;
-    }
-    .tt-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 2px;
-        flex-shrink: 0;
-    }
-    .tt-label {
-        flex: 1;
-        color: var(--theme-textSecondary, #b3b3b3);
-        padding-right: 12px;
-    }
-    .tt-val {
-        font-weight: 600;
-    }
-    .tt-total {
-        margin-top: 6px;
-        padding-top: 6px;
-        border-top: 1px solid var(--theme-border, #404040);
-        font-weight: 600;
-        text-align: right;
-        font-size: 0.82rem;
     }
 </style>

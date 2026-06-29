@@ -8,6 +8,8 @@
      * palette      - Array of colors from lowest to highest intensity
      * weeks        – maximum number of weeks to show (default 52)
      */
+     import { formatDateFull, formatMinutes } from "$lib/utils/chartFormatters.js";
+     
      export let data = [];
      export let primaryColor = "var(--theme-accent)"; // Can be a hex, rgb, or a CSS variable like var(--brand)
      export let weeks = 52;
@@ -32,7 +34,7 @@
     let wrapEl;
     let W = 0;
 
-    // ── Constants ─────────────────────────────────────────────────────────────
+    // ── Constants ─────────────────────────────────────────────────────────── [...]
     const CELL      = 13;
     const GAP       =  3;
     const DAY_LBL_W = 28;
@@ -51,7 +53,7 @@
         data.map((d) => [d.date, d.studyMinutes ?? 0]),
     );
 
-    // ── Grid ──────────────────────────────────────────────────────────────────
+    // ── Grid ───────────────────────────────────────────────────────────[...]
     $: grid = (() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -94,7 +96,7 @@
         return palette[Math.min(index, maxIndex)];
     }
 
-    // ── Month labels ──────────────────────────────────────────────────────────
+    // ── Month labels ────────────────────────────────────────────────────────── [...]
     $: monthLabels = (() => {
         const out = [];
         let last = -1;
@@ -111,7 +113,7 @@
         return out;
     })();
 
-    // ── Tooltip ───────────────────────────────────────────────────────────────
+    // ── Tooltip ─────────────────────────────────────────────────────────── [...]
     let tooltip = null;
     
     function showTooltip(e, cell) {
@@ -125,19 +127,7 @@
     $: ttX = tooltip ? Math.min(tooltip.x + 14, (W || 400) - 180) : 0;
     $: ttY = tooltip ? Math.max(tooltip.y - 40, 4) : 0;
 
-    function fmtDate(date) {
-        return date.toLocaleDateString("en-US", {
-            weekday: "short", month: "short", day: "numeric", year: "numeric",
-        });
-    }
-    
-    function fmtMins(m) {
-        if (!m) return "No focus time";
-        const h = Math.floor(m / 60), min = m % 60;
-        return (h > 0 ? `${h}h ` : "") + (min > 0 ? `${min}m` : "");
-    }
-
-    // ── Day labels ────────────────────────────────────────────────────────────
+    // ── Day labels ────────────────────────────────────────────────────────── [...]
     const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const SHOW_ROWS = new Set([1, 3, 5]);
 
@@ -191,8 +181,8 @@
 
         {#if tooltip}
             <div class="tooltip" style="left:{ttX}px;top:{ttY}px;">
-                <div class="tt-date">{fmtDate(tooltip.cell.date)}</div>
-                <div class="tt-val">{fmtMins(tooltip.cell.mins)}</div>
+                <div class="tt-date">{formatDateFull(tooltip.cell.date)}</div>
+                <div class="tt-val">{formatMinutes(tooltip.cell.mins)}</div>
             </div>
         {/if}
     {/if}

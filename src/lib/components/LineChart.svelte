@@ -1,4 +1,7 @@
 <script>
+    import { formatDate, formatValue, calculateNiceMax, calculateLabelStep } from "$lib/utils/chartFormatters.js";
+    import TooltipContent from "$lib/components/TooltipContent.svelte";
+
     export let data = [];
     export let series = [];
     export let unit = "";
@@ -17,53 +20,11 @@
     let tooltipX = 0;
     let tooltipY = 0;
 
-    // ── Formatting ────────────────────────────────────────────────────────────
+    // ── Scale ──────────────────────────────────────────────────────────── [...]
 
-    function fmtDate(s) {
-        return new Date(s).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-        });
-    }
-
-    function fmtMins(m) {
-        if (!m) return "0m";
-        const h = Math.floor(m / 60),
-            min = m % 60;
-        return h > 0 ? (min > 0 ? `${h}h ${min}m` : `${h}h`) : `${min}m`;
-    }
-
-    function fmtTick(tick) {
-        if (unit !== "m") return String(tick);
-        if (tick === 0) return "0";
-        if (tick % 60 === 0) return `${tick / 60}h`;
-        return tick >= 60
-            ? `${Math.floor(tick / 60)}h${tick % 60}m`
-            : `${tick}m`;
-    }
-
-    function fmt(val) {
-        return unit === "m" ? fmtMins(val) : String(Math.round(val));
-    }
-
-    // ── Scale ─────────────────────────────────────────────────────────────────
-
-    $: maxY = niceMax(
+    $: maxY = calculateNiceMax(
         Math.max(...data.flatMap((d) => series.map((s) => d[s.key] ?? 0)), 1),
     );
-
-    function niceMax(v) {
-        if (v <= 0) return 10;
-        const candidates = [
-            1, 2, 5, 10, 15, 20, 25, 30, 60, 90, 120, 150, 180, 240, 300, 360,
-            480,
-        ];
-        const rawStep = v / 4;
-        const step =
-            candidates.find((c) => c >= rawStep) ??
-            Math.ceil(rawStep / 60) * 60;
-        return step * 4;
-    }
 
     $: yTicks = Array.from({ length: 5 }, (_, i) => (maxY / 4) * i);
 
@@ -119,14 +80,7 @@
             : null;
 
     // X-label positions
-    $: labelStep =
-        data.length <= 7
-            ? 1
-            : data.length <= 14
-              ? 2
-              : data.length <= 21
-                ? 3
-                : Math.ceil(data.length / 7);
+    $: labelStep = calculateLabelStep(data.length);
 
     $: xLabels = data
         .map((d, gi) => ({
@@ -136,7 +90,7 @@
         }))
         .filter((_, gi) => gi % labelStep === 0);
 
-    // ── Hover ─────────────────────────────────────────────────────────────────
+    // ── Hover ──────────────────────────────────────────────────────────── [...]
 
     function onMouseMove(e) {
         if (!wrapEl) return;
@@ -237,7 +191,7 @@
                         fill="var(--theme-textSecondary,#b3b3b3)"
                         font-size="10"
                     >
-                        {fmtTick(tick)}
+                        {formatValue(tick, unit)}
                     </text>
                 {/each}
 
@@ -290,7 +244,7 @@
                         fill="var(--theme-textSecondary,#b3b3b3)"
                         font-size="10"
                     >
-                        {fmtDate(lbl.d.date)}
+                        {formatDate(lbl.d.date)}
                     </text>
                 {/each}
 
@@ -308,16 +262,7 @@
 
         {#if hoverGi !== null}
             <div class="tooltip" style="left:{ttX}px;top:{ttY}px;">
-                <div class="tt-date">{fmtDate(data[hoverGi].date)}</div>
-                {#each series as ser}
-                    <div class="tt-row">
-                        <span class="tt-dot" style="background:{ser.color}" />
-                        <span class="tt-label">{ser.label}</span>
-                        <span class="tt-val"
-                            >{fmt(data[hoverGi][ser.key] ?? 0)}</span
-                        >
-                    </div>
-                {/each}
+                <TooltipContent dataPoint={data[hoverGi]} {series} {unit} />
             </div>
         {/if}
     {/if}
@@ -353,33 +298,5 @@
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
         white-space: nowrap;
         z-index: 10;
-    }
-    .tt-date {
-        font-weight: 600;
-        margin-bottom: 6px;
-        color: var(--theme-textSecondary, #b3b3b3);
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-    }
-    .tt-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin: 3px 0;
-    }
-    .tt-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 2px;
-        flex-shrink: 0;
-    }
-    .tt-label {
-        flex: 1;
-        color: var(--theme-textSecondary, #b3b3b3);
-        padding-right: 12px;
-    }
-    .tt-val {
-        font-weight: 600;
     }
 </style>
