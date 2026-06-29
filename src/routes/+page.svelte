@@ -226,12 +226,22 @@
                 disabled={$pomodoro.isRunning}
             />
         </div>
+
+        <a
+            class="credit"
+            href="https://x.com/46daishi"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            <img src="46hana.png" alt="" class="credit-icon" />
+            nodoka. Made by 46dai
+        </a>
     {/if}
 </main>
 
 <!-- Fixed left-side navigation -->
 <div class="logo">
-    <a href="https://x.com/46daishi" target="_blank"><img src="nodoka.png" alt="nodoka" /></a>
+    <a href="https://x.com/46daishi" target="_blank" rel="noopener noreferrer"><img src="nodoka.png" alt="nodoka" /></a>
 </div>
 <nav class="side-nav" aria-label="App navigation">
     <div class="nav-actions">
@@ -497,5 +507,46 @@
             opacity: 0;
             pointer-events: none;
         }
+
+        
+    }
+
+    @media (max-height: 450px) {
+        .credit {
+            opacity: 0 !important;
+            pointer-events: none;
+        }
+    }
+
+    /* ── Credit footer ───────────────────────────────────────────────────── */
+
+    .credit {
+        position: fixed;
+        bottom: 1.2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(0);
+        display: flex;
+        align-items: center;
+        gap: 0.35em;
+        font-size: 0.8rem;
+        color: var(--theme-textSecondary, #b3b3b3);
+        text-decoration: none;
+        opacity: 0.30;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        white-space: nowrap;
+        pointer-events: auto;
+    }
+
+    .credit:hover {
+        opacity: 1;
+        transform: translateX(-50%) translateY(-3px);
+    }
+
+    .credit-icon {
+        width: 14px;
+        height: 14px;
+        object-fit: contain;
+        opacity: 0.8;
+        border-radius: 3px;
     }
 </style>
