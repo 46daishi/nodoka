@@ -17,6 +17,58 @@ impl DiscordState {
     }
 }
 
+/// Build an activity from individual fields.
+/// Extracts the repetitive field-setting logic.
+fn build_activity(
+    details: Option<&str>,
+    status: Option<&str>,
+    large_image: Option<&str>,
+    large_text: Option<&str>,
+    small_image: Option<&str>,
+    small_text: Option<&str>,
+    start_timestamp: Option<i64>,
+    end_timestamp: Option<i64>,
+) -> activity::Activity {
+    let mut activity_builder = activity::Activity::new();
+
+    if let Some(d) = details {
+        activity_builder = activity_builder.details(d);
+    }
+    if let Some(s) = status {
+        activity_builder = activity_builder.state(s);
+    }
+
+    if large_image.is_some() || small_image.is_some() {
+        let mut assets = activity::Assets::new();
+        if let Some(img) = large_image {
+            assets = assets.large_image(img);
+        }
+        if let Some(txt) = large_text {
+            assets = assets.large_text(txt);
+        }
+        if let Some(img) = small_image {
+            assets = assets.small_image(img);
+        }
+        if let Some(txt) = small_text {
+            assets = assets.small_text(txt);
+        }
+        activity_builder = activity_builder.assets(assets);
+    }
+
+    if start_timestamp.is_some() || end_timestamp.is_some() {
+        let mut timestamps = activity::Timestamps::new();
+        if let Some(start) = start_timestamp {
+            timestamps = timestamps.start(start);
+        }
+        if let Some(end) = end_timestamp {
+            timestamps = timestamps.end(end);
+        }
+        activity_builder = activity_builder.timestamps(timestamps);
+    }
+
+    activity_builder
+}
+
 /// Check if enough time has passed since the last failed connection attempt.
 /// Implements exponential backoff: 1s, 2s, 5s, etc.
 fn should_retry_connect(state: &DiscordState) -> bool {
@@ -67,45 +119,19 @@ pub fn update_discord_presence(
     let mut client_lock = state.client.lock().unwrap();
 
     if let Some(client) = client_lock.as_mut() {
-        let mut activity_builder = activity::Activity::new();
-
-        if let Some(d) = details {
-            activity_builder = activity_builder.details(&d);
-        }
-        if let Some(s) = status {
-            activity_builder = activity_builder.state(&s);
-        }
-
-        if large_image.is_some() || small_image.is_some() {
-            let mut assets = activity::Assets::new();
-            if let Some(img) = large_image {
-                assets = assets.large_image(&img);
-            }
-            if let Some(txt) = large_text {
-                assets = assets.large_text(&txt);
-            }
-            if let Some(img) = small_image {
-                assets = assets.small_image(&img);
-            }
-            if let Some(txt) = small_text {
-                assets = assets.small_text(&txt);
-            }
-            activity_builder = activity_builder.assets(assets);
-        }
-
-        if start_timestamp.is_some() || end_timestamp.is_some() {
-            let mut timestamps = activity::Timestamps::new();
-            if let Some(start) = start_timestamp {
-                timestamps = timestamps.start(start);
-            }
-            if let Some(end) = end_timestamp {
-                timestamps = timestamps.end(end);
-            }
-            activity_builder = activity_builder.timestamps(timestamps);
-        }
+        let activity = build_activity(
+            details.as_deref(),
+            status.as_deref(),
+            large_image.as_deref(),
+            large_text.as_deref(),
+            small_image.as_deref(),
+            small_text.as_deref(),
+            start_timestamp,
+            end_timestamp,
+        );
 
         client
-            .set_activity(activity_builder)
+            .set_activity(activity)
             .map_err(|e| e.to_string())?;
         Ok(())
     } else {
