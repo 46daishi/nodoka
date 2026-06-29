@@ -519,7 +519,6 @@
     }
 
     /* ── Credit footer ───────────────────────────────────────────────────── */
-
     .credit {
         position: fixed;
         bottom: 1.2rem;

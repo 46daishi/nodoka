@@ -208,3 +208,7 @@ body {
     height: 22px !important;
 }
 
+.android .credit {
+    bottom: 4rem !important; /* different position */
+    -webkit-tap-highlight-color: transparent; /* remove blue tap flash */
+}
