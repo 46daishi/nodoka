@@ -67,4 +67,4 @@ export function closeAllModals() {
     set(createInitialState());
 }
 
-export { subscribe };
+export const modals = { subscribe };
