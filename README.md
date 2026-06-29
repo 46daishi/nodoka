@@ -17,7 +17,7 @@ Built with SvelteKit + Tauri — fast, native, and yours to theme. Runs on Windo
 ## 📸 Screenshots
 <img src="https://i.imgur.com/RIGXaeR.png" width="33%"> <img src="https://i.imgur.com/zzcVB0L.png" width="33%"> <img src="https://i.imgur.com/xJ6XURN.png" width="33%">
 <img src="https://i.imgur.com/eHrqekK.png" width="33%"> <img src="https://i.imgur.com/SsgSo42.png" width="33%"> <img src="https://i.imgur.com/6RMIBvF.png" width="33%">
-<img src="https://i.imgur.com/KfhypEg.png">
+<img src="https://i.imgur.com/KfhypEg.png" width="45%"> <img src="https://i.imgur.com/EFSRBL0.png" width="54%">
 
 ---
 
