@@ -20,37 +20,37 @@ impl DiscordState {
 /// Build an activity from individual fields.
 /// Extracts the repetitive field-setting logic.
 fn build_activity(
-    details: Option<&str>,
-    status: Option<&str>,
-    large_image: Option<&str>,
-    large_text: Option<&str>,
-    small_image: Option<&str>,
-    small_text: Option<&str>,
+    details: Option<String>,
+    status: Option<String>,
+    large_image: Option<String>,
+    large_text: Option<String>,
+    small_image: Option<String>,
+    small_text: Option<String>,
     start_timestamp: Option<i64>,
     end_timestamp: Option<i64>,
 ) -> activity::Activity {
     let mut activity_builder = activity::Activity::new();
 
     if let Some(d) = details {
-        activity_builder = activity_builder.details(d);
+        activity_builder = activity_builder.details(&d);
     }
     if let Some(s) = status {
-        activity_builder = activity_builder.state(s);
+        activity_builder = activity_builder.state(&s);
     }
 
     if large_image.is_some() || small_image.is_some() {
         let mut assets = activity::Assets::new();
         if let Some(img) = large_image {
-            assets = assets.large_image(img);
+            assets = assets.large_image(&img);
         }
         if let Some(txt) = large_text {
-            assets = assets.large_text(txt);
+            assets = assets.large_text(&txt);
         }
         if let Some(img) = small_image {
-            assets = assets.small_image(img);
+            assets = assets.small_image(&img);
         }
         if let Some(txt) = small_text {
-            assets = assets.small_text(txt);
+            assets = assets.small_text(&txt);
         }
         activity_builder = activity_builder.assets(assets);
     }
@@ -120,12 +120,12 @@ pub fn update_discord_presence(
 
     if let Some(client) = client_lock.as_mut() {
         let activity = build_activity(
-            details.as_deref(),
-            status.as_deref(),
-            large_image.as_deref(),
-            large_text.as_deref(),
-            small_image.as_deref(),
-            small_text.as_deref(),
+            details,
+            status,
+            large_image,
+            large_text,
+            small_image,
+            small_text,
             start_timestamp,
             end_timestamp,
         );
