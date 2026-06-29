@@ -10,6 +10,8 @@ Built with SvelteKit + Tauri — fast, native, and yours to theme. Runs on Windo
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Android%20%7C%20Windows-lightgrey?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
+<img src="https://i.imgur.com/STETVJG.png">
+
 </div>
 
 ---
