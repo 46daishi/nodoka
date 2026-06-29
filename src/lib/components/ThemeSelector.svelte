@@ -1,71 +1,44 @@
 <script>
-    import {
-        currentMode,
-        currentColor,
-        themeOptions,
-        applyTheme,
-    } from "$lib/themes/store.js";
-    import ActionButton from "$lib/components/ActionButton.svelte";
+    import { currentTheme, themeList, applyTheme } from "$lib/stores/themes.js";
+    import ActionButton from "./ActionButton.svelte";
     import { slide } from "svelte/transition";
-    import { cubicOut, quadOut, cubicInOut, cubicIn } from "svelte/easing";
+    import { cubicInOut } from "svelte/easing";
+    import { ICONS } from "$lib/icons.js";
 
     let open = false;
 
-    let themeIcon = "\udb80\udfd8";
+    $: active = $currentTheme;
 
-    $: mode = $currentMode;
-    $: color = $currentColor;
-
-    function toggleOpen() {
-        open = !open;
-    }
-
-    function toggleMode() {
-        const newMode = mode === "light" ? "dark" : "light";
-        applyTheme(newMode, color);
-    }
-
-    function selectColor(colorKey) {
-        applyTheme(mode, colorKey);
-    }
+    function toggle() { open = !open; }
+    function close() { open = false; }
+    function select(key) { applyTheme(key); }
 </script>
 
-<div
-    class="theme-selector"
-    on:mouseenter={() => (open = true)}
-    on:mouseleave={() => (open = false)}
->
-    <ActionButton
-        icon={themeIcon}
-        label=""
-        variant="secondary"
-        size="small"
-        on:mouseenter={() => (open = true)}
-        on:mouseleave={() => (open = false)}
-    />
+<svelte:window on:click={close} />
+
+<div class="theme-selector">
+    <div on:click|stopPropagation={toggle}>
+        <ActionButton icon={ICONS.theme} variant="secondary" size="small" />
+    </div>
 
     {#if open}
         <div
-            class="theme-grid"
-            transition:slide={{ duration: 250, easing: cubicInOut, delay: 0 }}
+            class="swatch-grid"
+            transition:slide={{ duration: 250, easing: cubicInOut }}
+            on:click|stopPropagation
         >
-            <button
-                class="theme-swatch"
-                style="background-color: {$currentMode === 'dark'
-                    ? '#ffffff'
-                    : '#1a1a1a'}"
-                on:click={toggleMode}
-            >
-            </button>
-
-            {#each themeOptions as theme (theme.value)}
+            {#each themeList as theme (theme.value)}
                 <button
-                    class="theme-swatch {$currentColor === theme.value
-                        ? 'selected'
-                        : ''}"
-                    style="background-color: {theme.colors.primary}"
-                    on:click={() => selectColor(theme.value)}
+                    class="swatch"
+                    class:active={active === theme.value}
+                    title={theme.label}
+                    on:click={() => select(theme.value)}
+                    aria-pressed={active === theme.value}
+                    aria-label="Select {theme.label} theme"
                 >
+                    <!-- Left half: background colour; right half: primary colour -->
+                    <span class="half" style="background:{theme.colors.background}" />
+                    <span class="half" style="background:{theme.colors.primary}" />
                 </button>
             {/each}
         </div>
@@ -79,35 +52,38 @@
         gap: 0.5rem;
     }
 
-    .theme-grid {
+    .swatch-grid {
         display: grid;
-        grid-template-columns: repeat(2, 0.2fr);
-        gap: 0.5rem;
-        padding-left: 0;
-        align-items: center;
-        justify-content: center;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.4rem;
     }
 
-    .theme-swatch {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 1px solid var(--theme-border);
+    .swatch {
         display: flex;
-        align-items: center;
-        justify-content: center;
+        width: 100%;
+        height: 20px;
+        border-radius: 6px;
+        border: 1px solid var(--theme-border, #404040);
+        overflow: hidden;
         cursor: pointer;
-        position: relative;
+        padding: 0;
+        transition:
+            transform 0.15s,
+            box-shadow 0.15s;
     }
 
-    .dot {
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
+    .swatch:hover {
+        transform: scale(1.08);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     }
 
-    @font-face {
-        font-family: "Symbols Nerd Font";
-        src: url("/fonts/SymbolsNerdFont-Regular.ttf") format("truetype");
+    .swatch.active {
+        border-color: var(--theme-primary, #36B7BD);
+        box-shadow: 0 0 0 1px var(--theme-primary, #36B7BD);
+    }
+
+    .half {
+        flex: 1;
+        display: block;
     }
 </style>

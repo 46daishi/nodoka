@@ -1,104 +1,107 @@
 <script>
     import "../app.css";
-    import { initializeTheme } from "$lib/themes/store.js";
     import { onMount, onDestroy } from "svelte";
-    import { discordRPC } from "$lib/discord/discord";
-    import { PRESENCE_DEFAULTS } from "$lib/discord/defaults";
-    import { settings } from "$lib/settings/store.js";
     import { page } from "$app/stores";
     import { get } from "svelte/store";
+    import { initializeTheme } from "$lib/stores/themes.js";
+    import { settings, currentProfile } from "$lib/stores/settings.js";
+    import { discordRPC } from "$lib/rpc.js";
+    import {
+        PRESENCE_DEFAULTS,
+        PRESENCE_DETAILS,
+        PRESENCE_ICONS,
+    } from "$lib/defaults/discord.js";
+    import { noiseEngine } from "$lib/engines/noise.js";
 
     let discordEnabled = false;
-    let currentPath = "/";
+    let isConnecting = false;
     let unsubSettings = () => {};
     let unsubPage = () => {};
+    let unsubProfile = () => {};
+
+    // ── Discord presence per route ────────────────────────────────────────────
 
     /** @param {string} path */
-    function pathToRoute(path) {
-        if (path === "/" || path === "") return "home";
-        if (path.startsWith("/stats")) return "stats";
-        if (path.startsWith("/settings")) return "settings";
-        return "other";
+    function routePresence(path) {
+        if (path.startsWith("/stats"))
+            return {
+                details: PRESENCE_DETAILS.statsDetails,
+                smallText: "Statistics",
+                smallImage: PRESENCE_ICONS.statsIcon,
+            };
+        if (path.startsWith("/settings"))
+            return {
+                details: PRESENCE_DETAILS.settingsDetails,
+                status: "Profile: " + get(currentProfile).name,
+                smallText: "Settings",
+                smallImage: PRESENCE_ICONS.settingsIcon,
+            };
+        return {}; // home: use defaults
     }
 
     /** @param {string} path */
-    async function setPresenceForPath(path) {
+    async function setPresence(path) {
         if (!discordEnabled) return;
-        const route = pathToRoute(path);
         try {
-            if (route === "home") {
-                await discordRPC.updatePresence(PRESENCE_DEFAULTS);
-            } else if (route === "stats") {
-                await discordRPC.updatePresence({
-                    ...PRESENCE_DEFAULTS,
-                    details: "Stats",
-                    status: "Viewing statistics",
-                    smallText: "Statistics",
-                    smallImage: "stats",
-                    endTimestamp: undefined,
-                });
-            } else if (route === "settings") {
-                await discordRPC.updatePresence({
-                    ...PRESENCE_DEFAULTS,
-                    details: "Settings",
-                    status: "Changing the settings",
-                    smallText: "Settings",
-                    smallImage: "settings",
-                    endTimestamp: undefined,
-                });
-            } else {
-                await discordRPC.updatePresence(PRESENCE_DEFAULTS);
-            }
+            await discordRPC.updatePresence({
+                ...PRESENCE_DEFAULTS,
+                endTimestamp: undefined,
+                ...routePresence(path),
+            });
         } catch (e) {
-            console.error("Discord presence update failed:", e);
+            console.warn("Discord presence update failed:", e);
+        }
+    }
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    /** Connect to Discord RPC and set presence for the current route. */
+    async function enableDiscord(path) {
+        if (isConnecting) return;
+        isConnecting = true;
+        try {
+            await discordRPC.connect();
+            await setPresence(path);
+        } catch (e) {
+            console.warn("Discord RPC connect failed:", e);
+        } finally {
+            isConnecting = false;
         }
     }
 
     onMount(async () => {
         initializeTheme();
-        // Track toggle state and route changes
-        const initialSettings = get(settings);
-        discordEnabled = !!initialSettings.discordPresence;
+        noiseEngine.init();
 
-        if (discordEnabled) {
-            try {
-                await discordRPC.connect();
-                await setPresenceForPath(window.location.pathname || "/");
-            } catch (e) {
-                console.error("Discord RPC error on init:", e);
-            }
-        }
+        // Capture the current path once so all subscribers below are consistent.
+        let currentPath = get(page).url.pathname;
 
-        unsubSettings = settings.subscribe((s) => {
-            if (s.discordPresence !== discordEnabled) {
-                discordEnabled = !!s.discordPresence;
-                if (discordEnabled) {
-                    discordRPC
-                        .connect()
-                        .then(() =>
-                            setPresenceForPath(window.location.pathname || "/"),
-                        )
-                        .catch((err) =>
-                            console.error("Discord RPC error on connect:", err),
-                        );
-                } else {
-                    discordRPC.disconnect();
-                }
+        discordEnabled = get(settings).discordPresence;
+        if (discordEnabled) await enableDiscord(currentPath);
+
+        unsubSettings = settings.subscribe(async (s) => {
+            if (s.discordPresence === discordEnabled) return;
+            discordEnabled = s.discordPresence;
+            if (discordEnabled) {
+                await enableDiscord(get(page).url.pathname);
+            } else {
+                discordRPC.disconnect().catch(console.warn);
             }
         });
 
         unsubPage = page.subscribe(($page) => {
             currentPath = $page.url.pathname;
-            setPresenceForPath(currentPath);
+            setPresence(currentPath);
         });
+
+        unsubProfile = currentProfile.subscribe(() => setPresence(currentPath));
     });
 
     onDestroy(async () => {
-        if (unsubSettings) unsubSettings();
-        if (unsubPage) unsubPage();
-        if (discordEnabled) {
-            await discordRPC.disconnect();
-        }
+        unsubSettings();
+        unsubPage();
+        unsubProfile();
+        if (discordEnabled) discordRPC.disconnect().catch(console.warn);
     });
 </script>
 

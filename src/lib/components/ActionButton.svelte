@@ -1,34 +1,35 @@
 <script>
-    /** @type {string} */
+    /** Nerd Font codepoint string (or any text) shown inside the button. */
     export let icon = "";
-    /** @type {string} */
+    /** Optional text label shown beside the icon. */
     export let label = "";
-    /** @type {() => void} */
+    /** Called when the button is clicked (not disabled). */
     export let onAction = () => {};
-    /** @type {string} */
-    export let variant = "primary"; // primary, secondary, danger
-    /** @type {boolean} */
+    /** Visual style variant. */
+    export let variant = "primary"; // "primary" | "secondary" | "danger"
+    /** Size preset. */
+    export let size = "default"; // "default" | "tiny" | "small" | "large"
+    /** When true, the button is non-interactive and visually dimmed. */
     export let disabled = false;
-    /** @type {string} */
-    export let size = "default"; // default, small, large
 
     function handleClick() {
-        if (!disabled) {
-            onAction();
-        }
+        if (!disabled) onAction();
     }
 </script>
 
 <button
-    class={`action-button ${variant} ${size} ${disabled ? "disabled" : ""}`}
+    class="action-button {variant} {size}"
+    class:disabled
     on:click={handleClick}
+    on:mouseenter
+    on:mouseleave
     {disabled}
 >
     {#if icon}
-        <span class="button-icon">{icon}</span>
+        <span class="icon nf" aria-hidden="true">{icon}</span>
     {/if}
     {#if label}
-        <span class="button-label">{label}</span>
+        <span class="label">{label}</span>
     {/if}
 </button>
 
@@ -46,86 +47,78 @@
         font-family: inherit;
         cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 8px var(--theme-shadow, rgba(0, 0, 0, 0.3));
-        background-color: var(--theme-button, #ffffff);
-        color: var(--theme-buttonText, #0f0f0f);
+        box-shadow: 0 4px 8px var(--theme-shadow, rgba(0, 0, 0, 0.3));
+
+        /* Default (secondary-like base) */
+        background-color: var(--theme-button, #2d2d2d);
+        color: var(--theme-buttonText, #ffffff);
     }
 
+    /* ── Hover / active states ── */
     .action-button:hover:not(:disabled) {
-        border-color: var(--theme-primary, #396cd8);
-        background-color: var(--theme-surface, #f8f9fa);
+        border-color: var(--theme-primary, #36b7bd);
         transform: translateY(-1px);
         box-shadow: 0 4px 12px var(--theme-shadow, rgba(0, 0, 0, 0.3));
     }
-
     .action-button:active:not(:disabled) {
-        border-color: var(--theme-primaryHover, #0052a3);
-        background-color: var(--theme-surface, #e8e8e8);
+        transform: translateY(0);
     }
-
     .action-button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
         transform: none;
     }
 
-    /* Variants */
+    /* ── Variants ── */
     .action-button.primary {
-        border-color: var(--theme-primary, #396cd8);
-        background-color: var(--theme-primary, #396cd8);
-        color: var(--theme-text, #ffffff);
+        background-color: var(--theme-primary, #36b7bd);
+        border-color: var(--theme-primary, #36b7bd);
+        color: #ffffff;
+    }
+    .action-button.primary:hover:not(:disabled) {
+        background-color: var(--theme-primaryHover, #17a4ab);
+        border-color: var(--theme-primaryHover, #17a4ab);
     }
 
-    .action-button.primary:hover:not(:disabled) {
-        background-color: var(--theme-primaryHover, #0052a3);
-        border-color: var(--theme-primaryHover, #0052a3);
+    .action-button.secondary {
+        background-color: var(--theme-surface, #2d2d2d);
+        color: var(--theme-text, #ffffff);
+    }
+    .action-button.secondary:hover:not(:disabled) {
+        background-color: var(--theme-button, #1a1a1a);
     }
 
     .action-button.danger {
-        border-color: var(--theme-accent, #dc3545);
-        background-color: var(--theme-accent, #dc3545);
-        color: var(--theme-text, #ffffff);
+        background-color: #dc3545;
+        border-color:  #dc3545;
+        color: #ffffff;
     }
-
+    
     .action-button.danger:hover:not(:disabled) {
-        background-color: var(--theme-accent, #dc3545b9);
-        border-color: var(--theme-accent, #dc3545b9);
+        opacity: 0.85;
     }
 
-    /* Sizes */
-
-    .action-button.xsmall {
-        padding: 0.6em 0.1em;
-        font-size: 0.5em;
+    /* ── Sizes ── */
+    .action-button.tiny {
+        padding: 0.7em 0.9em;
+        font-size: 0.9em;
     }
-
     .action-button.small {
         padding: 0.8em 1em;
         font-size: 1em;
     }
-
     .action-button.large {
         padding: 1.2em 1.5em;
         font-size: 1.1em;
     }
 
-    .button-icon {
-        font-family: "Symbols Nerd Font", monospace;
+    /* ── Icon ── */
+    .icon {
         font-size: 1.2em;
         line-height: 1;
     }
 
-    .button-label {
+    .label {
         font-weight: 500;
-    }
-
-    /* Theme overrides */
-    .action-button.secondary {
-        background-color: var(--theme-surface, #2d2d2d);
-        color: var(--theme-text, #ffffff);
-    }
-
-    .action-button.secondary:hover:not(:disabled) {
-        background-color: var(--theme-button, #0f0f0f98);
     }
 </style>

@@ -1,16 +1,27 @@
-let audio;
+import notificationSound from "$lib/assets/sounds/notification.ogg";
+import pianoSound from "$lib/assets/sounds/piano.ogg";
 
-export const sounds = {
-  START: "/sounds/notification.wav",
-  END: "/sounds/piano.mp3",
+export const SOUNDS = {
+  START: notificationSound,
+  END: pianoSound,
 };
 
-export function playNotificationSound(sound) {
-  if (!audio || audio.src !== sound) {
-    audio = new Audio(sound);
-    audio.volume = 1;
-  }
+const _ctx = new (window.AudioContext || window.webkitAudioContext)();
+const _cache = {};
 
-  audio.currentTime = 0;
-  audio.play().catch(console.warn);
+export async function playSound(src) {
+  console.log("Playing sound:", src);
+  try {
+    if (!_cache[src]) {
+      const res = await fetch(src);
+      const buf = await res.arrayBuffer();
+      _cache[src] = await _ctx.decodeAudioData(buf);
+    }
+    const source = _ctx.createBufferSource();
+    source.buffer = _cache[src];
+    source.connect(_ctx.destination);
+    source.start(0);
+  } catch (e) {
+    console.error("SOUND ERROR:", e);
+  }
 }

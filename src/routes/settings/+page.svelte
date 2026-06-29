@@ -1,148 +1,217 @@
 <script>
-    import { settings, settingsStorage } from "$lib/settings/store.js";
-    import { DEFAULT_SETTINGS } from "$lib/settings/defaults.js";
-    import Dropdown from "$lib/components/Dropdown.svelte";
+    import { goto } from "$app/navigation";
+    import { onMount } from "svelte";
+    import {
+        settings,
+        settingsStorage,
+        currentProfile,
+        switchProfile,
+    } from "$lib/stores/settings.js";
+    import { DEFAULT_SETTINGS } from "$lib/defaults/settings.js";
+    import { ICONS } from "$lib/icons.js";
     import Settings from "$lib/components/Settings.svelte";
     import ActionButton from "$lib/components/ActionButton.svelte";
+    import SelectInput from "$lib/components/SelectInput.svelte";
+
+    // ── Local settings ────────────────────────────────────────────────────────
 
     let localSettings;
-    settings.subscribe((value) => {
-        localSettings = { ...value };
+    settings.subscribe((v) => {
+        localSettings = { ...v };
     });
 
-    let backIcon = "\uf060";
-    let trashIcon = "\uf1f8";
+    function saveAndGoBack() {
+        settings.set({ ...localSettings });
+        goto("/");
+    }
+
+    // ── Profile management ────────────────────────────────────────────────────
 
     let profiles = [];
-    let selectedProfile = "";
-    let showNewProfileModal = false;
-    let newProfileName = "";
-    /** @type {Array<{value: string, label: string}>} */
-    $: profileOptions = [
-        { value: "new", label: "+ New Profile" },
-        ...profiles.map((profile) => ({
-            value: profile.id,
-            label: profile.name,
-        })),
-    ];
 
-    function goBack() {
-        const newSettings = {
-            focusMinutes: localSettings.focusMinutes,
-            shortBreakMinutes: localSettings.shortBreakMinutes,
-            longBreakMinutes: localSettings.longBreakMinutes,
-            longBreakEvery: localSettings.longBreakEvery,
-            discordPresence: localSettings.discordPresence,
-            autoStartNext: localSettings.autoStartNext,
-        };
-        settings.set(newSettings);
-        window.location.href = "/";
-    }
+    $: profileOptions = profiles.map((p) => ({ value: p.id, label: p.name }));
+    $: canDelete = profiles.length > 1 && $currentProfile.id !== "default";
 
     function loadProfiles() {
         profiles = settingsStorage.getProfiles();
-        const currentData = settingsStorage.getSettingsData();
-        selectedProfile = currentData
-            ? currentData.currentProfileId
-            : "default";
     }
 
-    function switchProfile(profileId) {
-        if (profileId === "new") {
-            showNewProfileModal = true;
-            return;
-        }
-
-        if (settingsStorage.switchProfile(profileId)) {
-            loadProfiles();
-            const currentProfileData = profiles.find((p) => p.id === profileId);
-            if (currentProfileData) {
-                localSettings = { ...currentProfileData.settings };
-            }
-        }
-    }
-
-    function createNewProfile() {
-        if (newProfileName.trim()) {
-            settingsStorage.addProfile(newProfileName.trim(), DEFAULT_SETTINGS);
-            loadProfiles();
-            showNewProfileModal = false;
-            newProfileName = "";
-        }
+    /** @param {Event} e */
+    function handleProfileChange(e) {
+        const id = /** @type {HTMLSelectElement} */ (e.target).value;
+        if (!switchProfile(id)) return;
+        loadProfiles();
+        localSettings = { ...settingsStorage.getCurrentSettings() };
     }
 
     function deleteProfile() {
-        if (profiles.length > 1) {
-            if (
-                confirm(
-                    `Are you sure you want to delete "${profiles.find((p) => p.id === selectedProfile)?.name}"?`,
-                )
-            ) {
-                settingsStorage.deleteProfile(selectedProfile);
-                loadProfiles();
-                // Switch to first available profile if we deleted current
-                if (profiles.length > 0) {
-                    switchProfile(profiles[0].id);
-                }
-            }
-        }
+        const target = profiles.find((p) => p.id === $currentProfile.id);
+        if (
+            !target ||
+            !confirm(`Delete "${target.name}"? This cannot be undone.`)
+        )
+            return;
+        settingsStorage.deleteProfile($currentProfile.id);
+        const data = settingsStorage.getSettingsData();
+        const active = data?.profiles.find((p) => p.id === data.currentProfileId);
+        currentProfile.set({ id: data.currentProfileId, name: active?.name ?? "Default" });
+        loadProfiles();
+        settings.set(settingsStorage.getCurrentSettings());
+        localSettings = { ...settingsStorage.getCurrentSettings() };
     }
 
-    $: canDeleteProfile = profiles.length > 1;
+    // ── New-profile modal ─────────────────────────────────────────────────────
 
-    loadProfiles();
+    let showModal = false;
+    let newName = "";
+
+    function showCreateModal() {
+        newName = "";
+        showModal = true;
+    }
+
+    function createProfile() {
+        if (!newName.trim()) return;
+        const profile = settingsStorage.addProfile(newName.trim(), { ...DEFAULT_SETTINGS });
+        switchProfile(profile.id);
+        loadProfiles();
+        localSettings = { ...settingsStorage.getCurrentSettings() };
+        showModal = false;
+    }
+
+    // ── Reorder modal ─────────────────────────────────────────────────────────
+
+    let showReorder = false;
+    /** @type {typeof profiles} Working copy manipulated during drag. */
+    let reorderList = [];
+
+    function openReorder() {
+        reorderList = [...profiles];
+        showReorder = true;
+    }
+
+    function saveReorder() {
+        settingsStorage.reorderProfiles(reorderList);
+        loadProfiles();
+        showReorder = false;
+    }
+
+    function cancelReorder() {
+        showReorder = false;
+    }
+
+    // ── Drag-and-drop ─────────────────────────────────────────────────────────
+
+    let dragIndex = null;
+    let dragOverIndex = null;
+
+    function onDragStart(e, i) {
+        dragIndex = i;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", i.toString());
+    }
+
+    function onDragOver(e, i) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        dragOverIndex = i;
+    }
+
+    function onDrop(e, i) {
+        e.preventDefault();
+        const from = dragIndex;
+        dragIndex = null;
+        dragOverIndex = null;
+        if (from === null || from === i) return;
+        const list = [...reorderList];
+        const [moved] = list.splice(from, 1);
+        list.splice(i, 0, moved);
+        reorderList = list;
+    }
+
+    function onDragEnd() {
+        dragIndex = null;
+        dragOverIndex = null;
+    }
+
+    onMount(() => {
+        loadProfiles();
+    });
 </script>
 
-<main class="container">
-    <h1>Settings</h1>
-
-    <Settings {localSettings} />
-
-    <div class="profile-section">
-        <h2>Profile Management</h2>
-        <div class="profile-controls">
-            <Dropdown
-                id="profile-select"
-                bind:value={selectedProfile}
+<main class="page settings-page">
+    <!-- ── Profile header ── -->
+    <header class="settings-header">
+        <h1>Settings</h1>
+        <div class="profile-row">
+            <SelectInput
                 options={profileOptions}
-                onChange={(value) => switchProfile(value)}
+                value={$currentProfile.id}
+                on:change={handleProfileChange}
             />
 
             <ActionButton
-                icon={trashIcon}
-                onAction={deleteProfile}
+                icon={ICONS.plus}
+                onAction={showCreateModal}
                 variant="primary"
-                size="small"
-                disabled={!canDeleteProfile}
+                size="tiny"
+            />
+
+            <ActionButton
+                icon={ICONS.edit}
+                onAction={openReorder}
+                variant="secondary"
+                size="tiny"
+                disabled={profiles.length < 2}
+            />
+
+            <ActionButton
+                icon={ICONS.trash}
+                onAction={deleteProfile}
+                disabled={!canDelete}
+                variant="danger"
+                size="tiny"
             />
         </div>
+    </header>
+
+    <!-- ── Settings form ── -->
+    <div class="form-card">
+        <Settings {localSettings} />
     </div>
 </main>
 
-<!-- New Profile Modal -->
-{#if showNewProfileModal}
-    <div class="modal-overlay" on:click={() => (showNewProfileModal = false)}>
+<!-- New-profile modal -->
+{#if showModal}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <div
+        class="modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        on:click={() => (showModal = false)}
+    >
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="modal" on:click|stopPropagation>
-            <h3>Create New Profile</h3>
+            <h3>New Profile</h3>
             <input
                 type="text"
-                bind:value={newProfileName}
+                bind:value={newName}
                 placeholder="Profile name"
                 class="modal-input"
                 on:keydown={(e) => {
-                    if (e.key === "Enter") createNewProfile();
-                    if (e.key === "Escape") showNewProfileModal = false;
+                    if (e.key === "Enter") createProfile();
+                    if (e.key === "Escape") showModal = false;
                 }}
             />
             <div class="modal-buttons">
                 <ActionButton
                     label="Create"
-                    onAction={createNewProfile}
+                    onAction={createProfile}
                     variant="primary"
                 />
                 <ActionButton
                     label="Cancel"
-                    onAction={() => (showNewProfileModal = false)}
+                    onAction={() => (showModal = false)}
                     variant="secondary"
                 />
             </div>
@@ -150,151 +219,221 @@
     </div>
 {/if}
 
+<!-- Reorder profiles modal -->
+{#if showReorder}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <div
+        class="modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        on:click={cancelReorder}
+    >
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
+        <div class="modal reorder-modal" on:click|stopPropagation>
+            <h3>Reorder Profiles</h3>
+            <p class="reorder-hint">Drag to rearrange</p>
+
+            <ul class="reorder-list" on:dragover|preventDefault>
+                {#each reorderList as profile, i (profile.id)}
+                    <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+                    <li
+                        class="reorder-item"
+                        class:drag-over={dragOverIndex === i && dragIndex !== i}
+                        class:dragging={dragIndex === i}
+                        draggable="true"
+                        on:dragstart={(e) => onDragStart(e, i)}
+                        on:dragover={(e) => onDragOver(e, i)}
+                        on:drop={(e) => onDrop(e, i)}
+                        on:dragend={onDragEnd}
+                    >
+                        <span class="drag-handle nf">{ICONS.reorder}</span>
+                        <span class="profile-name">{profile.name}</span>
+                        {#if profile.isDefault}
+                            <span class="default-badge">default</span>
+                        {/if}
+                    </li>
+                {/each}
+            </ul>
+
+            <div class="modal-buttons">
+                <ActionButton
+                    label="Save"
+                    onAction={saveReorder}
+                    variant="primary"
+                />
+                <ActionButton
+                    label="Cancel"
+                    onAction={cancelReorder}
+                    variant="secondary"
+                />
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Fixed back button -->
 <div class="bottom-nav">
-    <ActionButton icon={backIcon} onAction={goBack} variant="primary" />
+    <ActionButton
+        icon={ICONS.backAlt}
+        onAction={saveAndGoBack}
+        variant="primary"
+    />
 </div>
 
 <style>
-    @font-face {
-        font-family: "Symbols Nerd Font";
-        src: url("/fonts/SymbolsNerdFont-Regular.ttf") format("truetype");
-    }
-
-    :root {
-        font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-        font-size: 16px;
-        line-height: 24px;
-        font-weight: 400;
-
-        color: var(--theme-text, #f6f6f6);
-        background-color: var(--theme-background, #2f2f2f);
-
-        font-synthesis: none;
-        text-rendering: optimizeLegibility;
-        -webkit-font-smoothing: Antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        -webkit-text-size-adjust: 100%;
-    }
-
-    main {
-        background-color: var(--theme-background, #2f2f2f);
-        min-height: 100vh;
-        transition: background-color 0.3s ease;
-    }
-
-    .container {
-        margin: 0;
-        padding-top: 0;
+    /* ── Page shell ── */
+    .settings-page {
         display: flex;
         flex-direction: column;
-        justify-content: center;
         align-items: center;
-        text-align: center;
-        min-height: 50vh;
-        padding-bottom: 100px;
-        background-color: var(--theme-background, #2f2f2f);
+        padding: 0 1rem 8rem;
+        min-height: 100vh;
+        box-sizing: border-box;
+    }
+
+    /* ── Header ── */
+    .settings-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        padding: 4rem 0 1.5rem;
+        width: 100%;
+        max-width: 520px;
     }
 
     h1 {
-        text-align: center;
-        margin-bottom: 3rem;
+        margin: 0;
     }
 
-    .bottom-nav {
-        position: fixed;
-        bottom: 2rem;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 100;
-    }
-
-    .unit {
-        font-size: 0.8em;
-        opacity: 0.8;
-    }
-
-    .number-input:focus {
-        outline: none;
-        border-color: var(--theme-primary, #396cd8);
-        background-color: rgba(255, 255, 255, 0.15);
-    }
-
-    .profile-section {
-        margin-top: 3rem;
-        padding-top: 2rem;
-        border-top: 1px solid var(--theme-border, rgba(255, 255, 255, 0.1));
-    }
-
-    .profile-section h2 {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        font-size: 1.2em;
-    }
-
-    .profile-controls {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-
-    /* Modal Styles */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-    }
-
-    .modal {
-        background-color: var(--theme-surface, #2f2f2f);
+    /* ── Form card ── */
+    .form-card {
+        width: 100%;
+        max-width: 520px;
+        background: var(--theme-surface, #2d2d2d);
+        border: 1px solid var(--theme-border, #404040);
         border-radius: 16px;
-        padding: 3rem;
-        min-width: 100px;
-        box-shadow: 0 10px 25px var(--theme-shadow, rgba(0, 0, 0, 0.5));
-        border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.1));
+        padding: 1.5rem 2rem;
+        box-sizing: border-box;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    }
+
+    /* ── Modal ── */
+    .modal {
+        background: var(--theme-surface, #2d2d2d);
+        border: 1px solid var(--theme-border, #404040);
+        border-radius: 16px;
+        padding: 2rem;
+        width: min(320px, 90vw);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.25rem;
+        box-sizing: border-box;
     }
 
     .modal h3 {
-        margin-top: 0;
-        margin-bottom: 1.5rem;
-        text-align: center;
-        color: var(--theme-text, #f6f6f6);
+        margin: 0;
     }
 
+    /* ── New profile modal ── */
     .modal-input {
-        min-width: 50px;
-        padding: 0.9rem;
+        width: 100%;
+        padding: 0.75rem 1rem;
         border: 2px solid transparent;
         border-radius: 8px;
-        background-color: var(--theme-surface, rgba(255, 255, 255, 0.1));
+        background-color: var(--theme-background, #1a1a1a);
         color: var(--theme-text, #f6f6f6);
         font-size: 1em;
-        margin-bottom: 1.5rem;
-        transition: border-color 0.25s;
+        box-sizing: border-box;
+        transition: border-color 0.2s;
     }
 
     .modal-input:focus {
         outline: none;
-        border-color: var(--theme-primary, #396cd8);
+        border-color: var(--theme-primary, #36b7bd);
     }
 
     .modal-buttons {
         display: flex;
-        gap: 1rem;
+        gap: 0.75rem;
         justify-content: center;
     }
 
-    .modal-buttons {
+    /* ── Reorder modal ── */
+    .reorder-modal {
+        width: min(360px, 90vw);
+    }
+
+    .reorder-hint {
+        margin: -0.5rem 0 0;
+        font-size: 0.82rem;
+        color: var(--theme-textSecondary, #b3b3b3);
+    }
+
+    .reorder-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        width: 100%;
         display: flex;
-        gap: 1rem;
-        justify-content: center;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .reorder-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.65rem 0.9rem;
+        border-radius: 10px;
+        border: 1px solid var(--theme-border, #404040);
+        background: var(--theme-background, #1a1a1a);
+        cursor: grab;
+        user-select: none;
+        transition: background 0.15s, border-color 0.15s, opacity 0.15s, transform 0.15s;
+    }
+
+    .reorder-item:active {
+        cursor: grabbing;
+    }
+
+    .reorder-item.dragging {
+        opacity: 0.4;
+    }
+
+    .reorder-item.drag-over {
+        border-color: var(--theme-primary, #36b7bd);
+        background: color-mix(in srgb, var(--theme-primary, #36b7bd) 10%, var(--theme-background, #1a1a1a));
+        transform: scale(1.02);
+    }
+
+    .drag-handle {
+        font-size: 1rem;
+        color: var(--theme-textSecondary, #b3b3b3);
+        flex-shrink: 0;
+        line-height: 1;
+    }
+
+    .profile-name {
+        flex: 1;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--theme-text, #f6f6f6);
+    }
+
+    .default-badge {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--theme-primary, #36b7bd);
+        background: color-mix(in srgb, var(--theme-primary, #36b7bd) 12%, transparent);
+        border: 1px solid color-mix(in srgb, var(--theme-primary, #36b7bd) 35%, transparent);
+        border-radius: 100px;
+        padding: 0.15em 0.55em;
+        flex-shrink: 0;
     }
 </style>
