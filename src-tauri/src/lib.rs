@@ -21,7 +21,7 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             window.set_decorations(true)?;
 
-            #[cfg(not(target_os = "windows"))]
+            #[cfg(target_os = "linux")]
             window.set_decorations(false)?;
 
             Ok(())
