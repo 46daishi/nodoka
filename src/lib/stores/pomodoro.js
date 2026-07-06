@@ -20,6 +20,8 @@ function createPomodoroStore() {
       statisticsStorage.addFocusSession(duration, completedAt, get(sessionName)),
     onBreakDone: (duration, type, completedAt) =>
       statisticsStorage.addBreakSession(duration, type, completedAt),
+    onFlowBreakEnd: () => justCompleted.set(true),
+    onProfileSwitch: () => { justCompleted.set(false); _lastCompletedType = "Focus"; },
   });
 
   const { subscribe, set } = writable(engine.getState());

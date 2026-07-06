@@ -60,6 +60,8 @@ function loadPersistedState() {
  * @param {{
  *   onFocusDone?: (duration: number, completedAt: string) => void,
  *   onBreakDone?: (duration: number, type: "short"|"long", completedAt: string) => void,
+ *   onFlowBreakEnd?: () => void,
+ *   onProfileSwitch?: () => void,
  * }} [callbacks]
  */
 export function createEngine(initialSettings, callbacks = {}) {
@@ -253,6 +255,8 @@ export function createEngine(initialSettings, callbacks = {}) {
         callbacks.onBreakDone?.(breakMinutes, type, breakCompletedAt);
       }
 
+      callbacks.onFlowBreakEnd?.();
+
       playSound(SOUNDS.END);
       notify(MESSAGES.BREAK_END).catch(console.warn);
 
@@ -414,6 +418,7 @@ export function createEngine(initialSettings, callbacks = {}) {
    */
   function applyProfile(newSettings) {
     stop();
+    callbacks.onProfileSwitch?.();
     settings = { ...newSettings };
 
     // Reset session type to match new profile's mode

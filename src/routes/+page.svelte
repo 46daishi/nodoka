@@ -184,7 +184,7 @@
 
         <p class="session-label">
             {sessionLabel}
-            {#if $justCompleted && !$pomodoro.isRunning && !$settings.countUp}
+            {#if $justCompleted && !$pomodoro.isRunning && (!$settings.countUp || $pomodoro.sessionType === "Flow")}
                 <button class="edit-btn extend-btn" on:click={openExtensionModal}>
                     <span class="icon nf" aria-hidden="true">{ICONS.plus}</span>
                 </button>
