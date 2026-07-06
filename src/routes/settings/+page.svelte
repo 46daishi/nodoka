@@ -192,7 +192,7 @@
     >
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="modal" on:click|stopPropagation>
-            <h3>New Profile</h3>
+            <h2 class="modal-title">New Profile</h2>
             <input
                 type="text"
                 bind:value={newName}
@@ -203,17 +203,13 @@
                     if (e.key === "Escape") showModal = false;
                 }}
             />
-            <div class="modal-buttons">
-                <ActionButton
-                    label="Create"
-                    onAction={createProfile}
-                    variant="primary"
-                />
-                <ActionButton
-                    label="Cancel"
-                    onAction={() => (showModal = false)}
-                    variant="secondary"
-                />
+            <div class="modal-actions">
+                <button class="modal-btn primary" on:click={createProfile}>
+                    Create
+                </button>
+                <button class="modal-btn" on:click={() => (showModal = false)}>
+                    Cancel
+                </button>
             </div>
         </div>
     </div>
@@ -230,7 +226,7 @@
     >
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="modal reorder-modal" on:click|stopPropagation>
-            <h3>Reorder Profiles</h3>
+            <h2 class="modal-title">Reorder Profiles</h2>
             <p class="reorder-hint">Drag to rearrange</p>
 
             <ul class="reorder-list" on:dragover|preventDefault>
@@ -255,17 +251,13 @@
                 {/each}
             </ul>
 
-            <div class="modal-buttons">
-                <ActionButton
-                    label="Save"
-                    onAction={saveReorder}
-                    variant="primary"
-                />
-                <ActionButton
-                    label="Cancel"
-                    onAction={cancelReorder}
-                    variant="secondary"
-                />
+            <div class="modal-actions">
+                <button class="modal-btn primary" on:click={saveReorder}>
+                    Save
+                </button>
+                <button class="modal-btn" on:click={cancelReorder}>
+                    Cancel
+                </button>
             </div>
         </div>
     </div>
@@ -317,49 +309,6 @@
         box-sizing: border-box;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         overflow: hidden;
-    }
-
-    /* ── Modal ── */
-    .modal {
-        background: var(--theme-surface, #2d2d2d);
-        border: 1px solid var(--theme-border, #404040);
-        border-radius: 16px;
-        padding: 2rem;
-        width: min(320px, 90vw);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1.25rem;
-        box-sizing: border-box;
-    }
-
-    .modal h3 {
-        margin: 0;
-    }
-
-    /* ── New profile modal ── */
-    .modal-input {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 2px solid transparent;
-        border-radius: 8px;
-        background-color: var(--theme-background, #1a1a1a);
-        color: var(--theme-text, #f6f6f6);
-        font-size: 1em;
-        box-sizing: border-box;
-        transition: border-color 0.2s;
-    }
-
-    .modal-input:focus {
-        outline: none;
-        border-color: var(--theme-primary, #36b7bd);
-    }
-
-    .modal-buttons {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: center;
     }
 
     /* ── Reorder modal ── */

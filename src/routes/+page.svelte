@@ -119,6 +119,39 @@
         closeModal("extension");
     }
 
+    // ── Add-session modal ───────────────────────────────────────────────────
+
+    let addMinutes = 25;
+    let addName = "";
+    let addType = "focus";
+
+    function openAddModal() {
+        addMinutes = 25;
+        addName = "";
+        addType = "focus";
+        openModal("addSession");
+    }
+
+    function confirmAddSession() {
+        const mins = Math.max(1, Math.round(addMinutes));
+        const now = new Date().toISOString();
+        if (addType === "focus") {
+            statisticsStorage.addFocusSession(mins, now, addName || "nodoka");
+        } else {
+            statisticsStorage.addBreakSession(mins, "short", now);
+        }
+        closeModal("addSession");
+    }
+
+    function cancelAddSession() {
+        closeModal("addSession");
+    }
+
+    function focusAddInput(node) {
+        node.focus();
+        node.select();
+    }
+
     function focusExtensionInput(node) {
         node.focus();
         node.select();
@@ -158,7 +191,6 @@
         <input
             class="name-input"
             bind:value={localName}
-            on:blur={commitName}
             use:focusOnMount
             use:autocomplete={{
                 names: knownNames,
@@ -266,6 +298,12 @@
             variant="secondary"
             size="small"
         />
+        <ActionButton
+            icon={ICONS.plus}
+            onAction={openAddModal}
+            variant="secondary"
+            size="small"
+        />
     </div>
 </nav>
 
@@ -277,16 +315,15 @@
 {#if $modals.extension}
     <!-- svelte-ignore a11y-no-static-element-interactions -->
     <div
-        class="modal-backdrop"
+        class="modal-overlay"
         on:click={cancelExtension}
         on:keydown={(e) => e.key === "Escape" && cancelExtension()}
     >
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="modal" on:click|stopPropagation>
             <h2 class="modal-title">Extend session</h2>
-            <p class="modal-sub">How many extra minutes?</p>
             <input
-                class="duration-input"
+                class="modal-input ext-input"
                 type="number"
                 min="1"
                 max="120"
@@ -295,11 +332,73 @@
                 on:keydown={(e) => e.key === "Enter" && confirmExtension()}
             />
             <div class="modal-actions">
-                <button class="modal-btn cancel" on:click={cancelExtension}>
+                <button class="modal-btn primary" on:click={confirmExtension}>
+                    Start
+                </button>
+                <button class="modal-btn" on:click={cancelExtension}>
                     Cancel
                 </button>
-                <button class="modal-btn confirm" on:click={confirmExtension}>
-                    Start
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Add-session modal -->
+{#if $modals.addSession}
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div
+        class="modal-overlay"
+        on:click={cancelAddSession}
+        on:keydown={(e) => e.key === "Escape" && cancelAddSession()}
+    >
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div class="modal add-modal" on:click|stopPropagation>
+            <div class="add-tabs">
+                <button
+                    class="add-tab"
+                    class:active={addType === "focus"}
+                    on:click={() => (addType = "focus")}
+                >Focus</button>
+                <button
+                    class="add-tab"
+                    class:active={addType === "break"}
+                    on:click={() => (addType = "break")}
+                >Break</button>
+            </div>
+
+            <div class="add-row">
+                <input
+                    class="modal-input add-minutes"
+                    type="number"
+                    min="1"
+                    max="1440"
+                    bind:value={addMinutes}
+                    use:focusAddInput
+                    on:keydown={(e) => e.key === "Enter" && confirmAddSession()}
+                />
+                <span class="modal-unit">分</span>
+                {#if addType === "focus"}
+                    <input
+                        class="modal-input add-name"
+                        type="text"
+                        placeholder="session"
+                        bind:value={addName}
+                        use:autocomplete={{
+                            names: knownNames,
+                            onCommit: () => {},
+                            onCancel: () => { addName = ""; },
+                        }}
+                        on:keydown={(e) => e.key === "Enter" && confirmAddSession()}
+                    />
+                {/if}
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn primary" on:click={confirmAddSession}>
+                    Add
+                </button>
+                <button class="modal-btn" on:click={cancelAddSession}>
+                    Cancel
                 </button>
             </div>
         </div>
@@ -406,100 +505,65 @@
         margin-top: 15vh;
     }
 
-    /* ── Extension modal ─────────────────────────────────────────────────── */
-
-    .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.55);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 100;
+    .add-modal {
+        width: 400px;
     }
 
-    .modal {
-        background: var(--theme-surface, #2d2d2d);
-        border: 1px solid var(--theme-border, #404040);
-        border-radius: 16px;
-        padding: 2rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem;
-        min-width: 220px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-title {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--theme-text, #f6f6f6);
-    }
-
-    .modal-sub {
-        margin: 0;
-        font-size: 0.82rem;
-        color: var(--theme-textSecondary, #b3b3b3);
-    }
-
-    .duration-input {
-        background: var(--theme-background, #1a1a1a);
-        border: 2px solid var(--theme-border, #404040);
-        border-radius: 8px;
-        color: var(--theme-text, #f6f6f6);
+    .ext-input {
         font-size: 2rem;
         font-weight: 700;
-        font-family: inherit;
-        text-align: center;
         width: 5ch;
-        padding: 0.3rem 0.5rem;
-        outline: none;
-        transition: border-color 0.2s;
     }
 
-    .duration-input:focus {
-        border-color: var(--theme-primary, #36b7bd);
-    }
-
-    .duration-input::-webkit-inner-spin-button,
-    .duration-input::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-    }
-    .duration-input[type="number"] {
-        -moz-appearance: textfield;
-    }
-
-    .modal-actions {
+    .add-tabs {
         display: flex;
-        gap: 0.75rem;
-        margin-top: 0.25rem;
+        background: var(--theme-background, #1a1a1a);
+        border-radius: 12px;
+        padding: 4px;
+        width: 100%;
+        gap: 4px;
     }
 
-    .modal-btn {
+    .add-tab {
+        flex: 1;
         border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1.25rem;
-        font-size: 0.9rem;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--theme-textSecondary, #b3b3b3);
+        font-size: 0.85rem;
         font-weight: 600;
         font-family: inherit;
+        padding: 0.45rem 0;
         cursor: pointer;
-        transition: opacity 0.15s;
+        transition: background 0.2s, color 0.2s;
     }
 
-    .modal-btn:hover {
-        opacity: 0.85;
+    .add-tab.active {
+        background: var(--theme-surface, #2d2d2d);
+        color: var(--theme-text, #f6f6f6);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
     }
 
-    .modal-btn.cancel {
-        background: var(--theme-background, #1a1a1a);
+    .add-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .add-minutes {
+        width: 4.5rem;
+    }
+
+    .add-name {
+        flex: 1;
+    }
+
+    .modal-unit {
         color: var(--theme-textSecondary, #b3b3b3);
-    }
-
-    .modal-btn.confirm {
-        background: var(--theme-primary, #36b7bd);
-        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-right: 0.25rem;
     }
 
     @media (max-height: 372px) {

@@ -11,6 +11,7 @@ import { writable } from "svelte/store";
  * @typedef {{
  *   noise: boolean,
  *   extension: boolean,
+ *   addSession: boolean,
  * }} ModalState
  */
 
@@ -22,6 +23,7 @@ function createInitialState() {
     return {
         noise: false,
         extension: false,
+        addSession: false,
     };
 }
 

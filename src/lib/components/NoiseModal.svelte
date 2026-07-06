@@ -48,30 +48,14 @@
                 {/each}
             </div>
 
-            <ActionButton
-                label="Close"
-                onAction={onClose}
-                variant="secondary"
-            />
+            <div class="modal-actions">
+                <button class="modal-btn" on:click={onClose}>Close</button>
+            </div>
         </div>
     </div>
 {/if}
 
 <style>
-    .modal {
-        background: var(--theme-background, #2d2d2d);
-        border: 1px solid var(--theme-border, #404040);
-        border-radius: 16px;
-        padding: 2rem;
-        width: min(360px, 90vw);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1.25rem;
-        box-sizing: border-box;
-    }
-
     .modal-header {
         width: 100%;
         display: flex;
@@ -81,13 +65,14 @@
 
     .modal-header h3 {
         margin: 0;
+        font-size: 1.1rem;
     }
 
     .sound-list {
         width: 100%;
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
     .sound-row {
@@ -98,12 +83,12 @@
     }
 
     .sound-icon {
-        font-size: 1.6em;
+        font-size: 1.4em;
         text-align: center;
     }
 
     .sound-label {
-        font-size: 1em;
+        font-size: 0.95em;
         color: var(--theme-text, #f6f6f6);
         white-space: nowrap;
     }

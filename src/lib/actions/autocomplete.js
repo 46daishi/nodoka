@@ -18,6 +18,12 @@
 export function autocomplete(node, params) {
   let { names, onCommit, onCancel } = params;
 
+  function commit() {
+    node.setSelectionRange(node.value.length, node.value.length);
+    node.dispatchEvent(new Event("input", { bubbles: true }));
+    onCommit();
+  }
+
   /** The raw portion the user actually typed (no completion appended). */
   let typedPortion = "";
 
@@ -25,12 +31,7 @@ export function autocomplete(node, params) {
   function handleKeydown(e) {
     if (e.key === "Enter") {
       e.preventDefault();
-    
-      // Commit the autocomplete selection
-      node.setSelectionRange(node.value.length, node.value.length);
-      node.dispatchEvent(new Event("input", { bubbles: true }));
-    
-      onCommit();
+      commit();
       return;
     }
 
@@ -66,6 +67,7 @@ export function autocomplete(node, params) {
           const completion = typed + match.slice(typed.length);
           node.value = completion;
           node.setSelectionRange(typed.length, completion.length);
+          node.dispatchEvent(new Event("input", { bubbles: true }));
         } else {
           node.value = typed;
         }
@@ -73,7 +75,12 @@ export function autocomplete(node, params) {
     }
   }
 
+  function handleBlur() {
+    commit();
+  }
+
   node.addEventListener("keydown", handleKeydown);
+  node.addEventListener("blur", handleBlur);
 
   return {
     /** Called by Svelte when the bound parameters change reactively. */
@@ -84,6 +91,7 @@ export function autocomplete(node, params) {
     },
     destroy() {
       node.removeEventListener("keydown", handleKeydown);
+      node.removeEventListener("blur", handleBlur);
     },
   };
 }
