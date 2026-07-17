@@ -578,7 +578,7 @@
     @media (max-height: 450px) {
         .credit {
             opacity: 0 !important;
-            pointer-events: none;
+            pointer-events: none !important;
         }
     }
 
