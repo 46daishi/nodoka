@@ -1,27 +1,27 @@
 import { writable, get } from "svelte/store";
 import { settings, isSwitchingProfile } from "$lib/stores/settings.js";
 import { statisticsStorage } from "$lib/stores/stats.js";
-import { createEngine } from "../engines/pomodoro.js";
+import { createEngine, SESSION } from "../engines/pomodoro.js";
 
 export const sessionName = writable("nodoka");
 
 // Signals to the UI that a session just finished naturally (not stopped/reset).
-// The page uses this to show the extension prompt.
 export const justCompleted = writable(false);
 
-// The session type that most recently completed naturally, so startExtension
-// can record stats against the right type regardless of what state.sessionType
-// currently is (nextSession() has already advanced it to the next session).
-let _lastCompletedType = "Focus";
+let _lastCompletedType = SESSION.FOCUS;
 
 function createPomodoroStore() {
   const engine = createEngine(get(settings), {
-    onFocusDone: (duration, completedAt) =>
-      statisticsStorage.addFocusSession(duration, completedAt, get(sessionName)),
-    onBreakDone: (duration, type, completedAt) =>
-      statisticsStorage.addBreakSession(duration, type, completedAt),
+    onFocusDone: (duration, completedAt) => {
+      _lastCompletedType = SESSION.FOCUS;
+      statisticsStorage.addFocusSession(duration, completedAt, get(sessionName));
+    },
+    onBreakDone: (duration, type, completedAt) => {
+      _lastCompletedType = SESSION.SHORT_BREAK;
+      statisticsStorage.addBreakSession(duration, type, completedAt);
+    },
     onFlowBreakEnd: () => justCompleted.set(true),
-    onProfileSwitch: () => { justCompleted.set(false); _lastCompletedType = "Focus"; },
+    onProfileSwitch: () => { justCompleted.set(false); _lastCompletedType = SESSION.FOCUS; },
   });
 
   const { subscribe, set } = writable(engine.getState());
@@ -29,8 +29,6 @@ function createPomodoroStore() {
   engine.subscribe(
     (state) => set(state),
     () => {
-      // Capture NOW before nextSession() advances sessionType.
-      _lastCompletedType = engine.getState().sessionType;
       justCompleted.set(true);
       engine.nextSession();
     },
