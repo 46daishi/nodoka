@@ -144,27 +144,12 @@
     <header class="settings-header">
         <h1>Settings</h1>
         <div class="profile-row">
-            <SelectInput
-                options={profileOptions}
-                value={$currentProfile.id}
-                on:change={handleProfileChange}
-            />
-
             <ActionButton
                 icon={ICONS.plus}
                 onAction={showCreateModal}
                 variant="primary"
                 size="tiny"
             />
-
-            <ActionButton
-                icon={ICONS.edit}
-                onAction={openReorder}
-                variant="secondary"
-                size="tiny"
-                disabled={profiles.length < 2}
-            />
-
             <ActionButton
                 icon={ICONS.trash}
                 onAction={deleteProfile}
@@ -172,6 +157,22 @@
                 variant="danger"
                 size="tiny"
             />
+            
+            <SelectInput
+                options={profileOptions}
+                value={$currentProfile.id}
+                on:change={handleProfileChange}
+            />
+
+            <ActionButton
+                icon={ICONS.reorder}
+                onAction={openReorder}
+                variant="secondary"
+                size="tiny"
+                disabled={profiles.length < 2}
+            />
+
+            
         </div>
     </header>
 
