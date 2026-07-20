@@ -27,6 +27,9 @@
     let totalStats = {};
     let loading = true;
 
+    /** @type {string} "all" or a specific session name */
+    let selectedHeatmapSession = "all";
+
     // ── Theme colors (read after mount) ───────────────────────────────────────
     let primaryColor = "#36B7BD";
     let accentColor = "#59CBD0";
@@ -229,6 +232,59 @@
             topPct,
         };
     })();
+
+    // ── Heatmap session selector ────────────────────────────────────────────
+
+    /**
+     * Per-session daily minute totals across ALL time (independent of the
+     * page's timeRange selector), keyed by session name. Mirrors the
+     * heatmap's own "past year" scope rather than the current time range.
+     */
+    $: allTimeSessionsData = (() => {
+        const raw = statisticsStorage.getStatisticsData();
+        if (!raw) return { names: [], byName: {} };
+
+        const byName = {};
+        for (const [date, day] of Object.entries(raw.dailyStats)) {
+            for (const session of day.focusSessions ?? []) {
+                if (!session.sessionName) continue;
+                const name = session.sessionName;
+                const mins = session.duration ?? 0;
+
+                byName[name] ??= {};
+                byName[name][date] = (byName[name][date] ?? 0) + mins;
+            }
+        }
+
+        const names = Object.keys(byName).sort((a, b) => a.localeCompare(b));
+        return { names, byName };
+    })();
+
+    $: heatmapSessionOptions = [
+        { value: "all", label: "All" },
+        ...allTimeSessionsData.names.map((n) => ({ value: n, label: n })),
+    ];
+
+    // If the previously-selected session no longer exists (e.g. after
+    // clearing statistics), fall back to "all".
+    $: if (
+        selectedHeatmapSession !== "all" &&
+        !allTimeSessionsData.names.includes(selectedHeatmapSession)
+    ) {
+        selectedHeatmapSession = "all";
+    }
+
+    $: heatmapData =
+        selectedHeatmapSession === "all"
+            ? totalStatsData
+            : Object.entries(
+                  allTimeSessionsData.byName[selectedHeatmapSession] ?? {},
+              ).map(([date, studyMinutes]) => ({ date, studyMinutes }));
+
+    $: heatmapColor =
+        selectedHeatmapSession === "all"
+            ? accentColor
+            : getStableColor(selectedHeatmapSession);
 
     // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -447,8 +503,17 @@
                         <h2>Activity</h2>
                         <p class="chart-sub">Daily focus time over the past year</p>
                     </div>
+                    {#if allTimeSessionsData.names.length > 0}
+                        <SelectInput
+                            options={heatmapSessionOptions}
+                            value={selectedHeatmapSession}
+                            on:change={(e) => {
+                                selectedHeatmapSession = e.target.value;
+                            }}
+                        />
+                    {/if}
                 </div>
-                <HeatMap data={totalStatsData} {accentColor} weeks={52} />
+                <HeatMap data={heatmapData} primaryColor={heatmapColor} weeks={52} />
             </section>
         </div>
     {/if}
