@@ -12,6 +12,11 @@
     import Settings from "$lib/components/Settings.svelte";
     import ActionButton from "$lib/components/ActionButton.svelte";
     import SelectInput from "$lib/components/SelectInput.svelte";
+    import {
+        exportAllData,
+        readBackupFile,
+        applyBackupData,
+    } from "$lib/utils/dataBackup.js";
 
     // ── Local settings ────────────────────────────────────────────────────────
 
@@ -134,6 +139,46 @@
         dragOverIndex = null;
     }
 
+    // ── Backup / restore (full localStorage) ────────────────────────────────────
+
+    /** @type {HTMLInputElement} */
+    let importFileInput;
+
+    function handleExport() {
+        const filename = exportAllData();
+        alert(
+            `Backup exported successfully.\n\nSaved as "${filename}" to your browser's default downloads location.`,
+        );
+    }
+
+    function triggerImport() {
+        importFileInput?.click();
+    }
+
+    /** @param {Event} e */
+    async function handleImportFile(e) {
+        const file = /** @type {HTMLInputElement} */ (e.target).files?.[0];
+        if (!file) return;
+
+        try {
+            const data = await readBackupFile(file);
+            if (
+                !confirm(
+                    "Import this backup? This will overwrite ALL current app data (statistics, settings, themes, etc.) and cannot be undone.",
+                )
+            ) {
+                return;
+            }
+            applyBackupData(data);
+            location.reload();
+        } catch (err) {
+            console.error("Failed to import data:", err);
+            alert("Failed to import: file is not a valid backup.");
+        } finally {
+            e.target.value = "";
+        }
+    }
+
     onMount(() => {
         loadProfiles();
     });
@@ -179,6 +224,24 @@
     <!-- ── Settings form ── -->
     <div class="form-card">
         <Settings {localSettings} />
+    </div>
+
+    <!-- ── Backup / restore ── -->
+    <div class="data-actions">
+        <button type="button" class="text-link" on:click={handleExport}>
+            Export
+        </button>
+        <span class="text-link-sep">·</span>
+        <button type="button" class="text-link" on:click={triggerImport}>
+            Import
+        </button>
+        <input
+            type="file"
+            accept="application/json"
+            bind:this={importFileInput}
+            on:change={handleImportFile}
+            class="visually-hidden"
+        />
     </div>
 </main>
 
@@ -310,6 +373,62 @@
         box-sizing: border-box;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         overflow: hidden;
+    }
+
+    /* ── Backup / restore text links ── */
+    .data-actions {
+        display: flex;
+        align-items: center;
+        justify-content: left;
+        margin-left: 20px;
+        gap: 0.6rem;
+        width: 100%;
+        max-width: 520px;
+        margin-top: 1rem;
+    }
+
+    .text-link {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--theme-textSecondary, #b3b3b3);
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        text-underline-offset: 3px;
+        transition: color 0.15s, text-decoration-color 0.15s;
+    }
+
+    .text-link:hover,
+    .text-link:focus-visible {
+        color: var(--theme-primary, #36b7bd);
+        text-decoration-color: currentColor;
+    }
+
+    .text-link:focus-visible {
+        outline: none;
+    }
+
+    .text-link-sep {
+        font-size: 0.85rem;
+        color: var(--theme-border, #404040);
+        user-select: none;
+    }
+
+    .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
     /* ── Reorder modal ── */
