@@ -40,7 +40,8 @@ class NoiseEngine {
 
       source.connect(gain);
       gain.connect(this._ctx.destination);
-      source.start(0);
+      
+      source.start();
 
       this._nodes[sound.id] = { source, gain };
     } catch (e) {
@@ -64,6 +65,12 @@ class NoiseEngine {
     for (const sound of state.sounds) {
       const effective = state.muted ? 0 : sound.volume;
       if (sound.volume > 0) {
+        
+        // Force the context to wake up if the system suspended it
+        if (this._ctx) {
+          await this._ctx.resume();
+        }
+
         if (!this._nodes[sound.id] && !this._loading.has(sound.id)) {
           await this._load(sound);
         }
