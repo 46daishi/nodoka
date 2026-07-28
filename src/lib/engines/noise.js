@@ -3,82 +3,46 @@ import { noiseStore } from "../stores/noise.js";
 
 class NoiseEngine {
   constructor() {
-    this._ctx = null;
-    this._nodes = {}; // id -> { source, gain }
-    this._buffers = {}; // id -> ArrayBuffer (compressed, small)
-    this._loading = new Set();
+    this._elements = {}; // id -> HTMLAudioElement
     this._inited = false;
   }
 
-  async init() {
+  init() {
     if (this._inited) return;
     if (typeof window === "undefined") return;
     this._inited = true;
-    this._ctx = new (window.AudioContext || window.webkitAudioContext)();
-    await this._applyState(get(noiseStore));
+    
+    this._applyState(get(noiseStore));
     noiseStore.subscribe((state) => this._applyState(state));
   }
 
-  async _load(sound) {
-    if (this._loading.has(sound.id)) return;
-    this._loading.add(sound.id);
-    try {
-      if (!this._buffers[sound.id]) {
-        const res = await fetch(sound.src);
-        this._buffers[sound.id] = await res.arrayBuffer();
-      }
-      const decoded = await this._ctx.decodeAudioData(
-        this._buffers[sound.id].slice(),
-      );
-
-      const source = this._ctx.createBufferSource();
-      source.buffer = decoded;
-      source.loop = true;
-
-      const gain = this._ctx.createGain();
-      gain.gain.value = 0;
-
-      source.connect(gain);
-      gain.connect(this._ctx.destination);
-      
-      source.start();
-
-      this._nodes[sound.id] = { source, gain };
-    } catch (e) {
-      console.warn(`Failed to load noise: ${sound.id}`, e);
-    } finally {
-      this._loading.delete(sound.id);
-    }
-  }
-
-  _unload(id) {
-    const node = this._nodes[id];
-    if (!node) return;
-    node.gain.gain.value = 0;
-    node.source.stop();
-    node.source.disconnect();
-    node.gain.disconnect();
-    delete this._nodes[id];
-  }
-
-  async _applyState(state) {
+  _applyState(state) {
     for (const sound of state.sounds) {
-      const effective = state.muted ? 0 : sound.volume;
-      if (sound.volume > 0) {
-        
-        // Force the context to wake up if the system suspended it
-        if (this._ctx) {
-          await this._ctx.resume();
-        }
+      const effectiveVolume = state.muted ? 0 : sound.volume;
+      let audio = this._elements[sound.id];
 
-        if (!this._nodes[sound.id] && !this._loading.has(sound.id)) {
-          await this._load(sound);
-        }
-        if (this._nodes[sound.id]) {
-          this._nodes[sound.id].gain.gain.value = effective;
+      if (effectiveVolume > 0) {
+        if (!audio) {
+          audio = new Audio(sound.src);
+          audio.loop = true;
+          audio.volume = effectiveVolume;
+          this._elements[sound.id] = audio;
+          
+          audio.play().catch((e) => {
+            console.warn(`Failed to play noise element: ${sound.id}`, e);
+          });
+        } else {
+          audio.volume = effectiveVolume;
+          if (audio.paused) {
+            audio.play().catch(() => {});
+          }
         }
       } else {
-        this._unload(sound.id);
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+          delete this._elements[sound.id];
+        }
       }
     }
   }
