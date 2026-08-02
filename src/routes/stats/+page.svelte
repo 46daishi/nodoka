@@ -86,17 +86,20 @@
 
     // Line: rolling 7-day average of focus minutes
     $: rollingData = (() => {
-        if (statsData.length < 2)
-            return statsData.map((d) => ({ ...d, rolling: d.studyMinutes }));
-        const W = 7;
-        return statsData.map((d, i) => {
-            const window = statsData.slice(Math.max(0, i - W + 1), i + 1);
-        
-            const avg =
-                window.reduce((s, x) => s + x.studyMinutes, 0) / window.length;
-            return { ...d, rolling: Math.round(avg) };
-        });
-    })();
+    if (totalStatsData.length < 2) return statsData;
+
+    const W = 7;
+    // 1. Calculate 7-day rolling average across ALL historical data
+    const allWithRolling = totalStatsData.map((d, i, arr) => {
+        const window = arr.slice(Math.max(0, i - W + 1), i + 1);
+        const avg = window.reduce((s, x) => s + x.studyMinutes, 0) / window.length;
+        return { ...d, rolling: Math.round(avg) };
+    });
+
+    // 2. Filter down to only match the dates currently visible in statsData
+    const visibleDates = new Set(statsData.map((d) => d.date));
+    return allWithRolling.filter((d) => visibleDates.has(d.date));
+})();
 
     $: lineSeries = [
         { key: "studyMinutes", label: "Daily focus", color: primaryColor },
